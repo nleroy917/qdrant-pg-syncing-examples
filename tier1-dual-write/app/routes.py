@@ -2,7 +2,7 @@
 Tier 1: Application-Level Dual-Write
 
 Every CRUD endpoint writes to both Postgres and Qdrant sequentially
-within the same request handler. Simple, synchronous, zero extra infra.
+within the same request handler. Simple, zero extra infra.
 """
 from __future__ import annotations
 
@@ -39,7 +39,10 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-# crud routes
+# ---------------------------------------------------------------------------
+# CRUD
+# ---------------------------------------------------------------------------
+
 @router.post("/products", response_model=ProductResponse, status_code=201)
 async def create_product(product: ProductCreate):
     # 1. Write to Postgres first — it is the source of truth
@@ -47,7 +50,7 @@ async def create_product(product: ProductCreate):
 
     # 2. Write to Qdrant — non-blocking on failure; reconcile catches drift
     try:
-        upsert_product(row)
+        await upsert_product(row)
     except Exception as exc:
         logger.error("Qdrant upsert failed for %s: %s", product.article_id, exc)
 
@@ -77,7 +80,7 @@ async def update_product_endpoint(article_id: str, data: ProductUpdate):
         raise HTTPException(status_code=404, detail="Product not found")
 
     try:
-        upsert_product(row)
+        await upsert_product(row)
     except Exception as exc:
         logger.error("Qdrant upsert failed for %s: %s", article_id, exc)
 
@@ -91,7 +94,7 @@ async def patch_product_endpoint(article_id: str, data: ProductPatch):
         raise HTTPException(status_code=404, detail="Product not found")
 
     try:
-        upsert_product(row)
+        await upsert_product(row)
     except Exception as exc:
         logger.error("Qdrant upsert failed for %s: %s", article_id, exc)
 
@@ -105,43 +108,49 @@ async def delete_product_endpoint(article_id: str):
         raise HTTPException(status_code=404, detail="Product not found")
 
     try:
-        qdrant_delete(article_id)
+        await qdrant_delete(article_id)
     except Exception as exc:
         logger.error("Qdrant delete failed for %s: %s", article_id, exc)
 
 
-# search routes
+# ---------------------------------------------------------------------------
+# Search
+# ---------------------------------------------------------------------------
+
 @router.get("/search", response_model=list[SearchResult])
-def search_hybrid(
+async def search_hybrid(
     q: str = Query(..., description="Search query"),
     color: str | None = Query(None),
     product_type: str | None = Query(None),
     limit: int = Query(10, ge=1, le=50),
 ):
-    return search(q, mode="hybrid", color=color, product_type=product_type, limit=limit)
+    return await search(q, mode="hybrid", color=color, product_type=product_type, limit=limit)
 
 
 @router.get("/search/semantic", response_model=list[SearchResult])
-def search_semantic(
+async def search_semantic(
     q: str = Query(...),
     color: str | None = Query(None),
     product_type: str | None = Query(None),
     limit: int = Query(10, ge=1, le=50),
 ):
-    return search(q, mode="semantic", color=color, product_type=product_type, limit=limit)
+    return await search(q, mode="semantic", color=color, product_type=product_type, limit=limit)
 
 
 @router.get("/search/keyword", response_model=list[SearchResult])
-def search_keyword(
+async def search_keyword(
     q: str = Query(...),
     color: str | None = Query(None),
     product_type: str | None = Query(None),
     limit: int = Query(10, ge=1, le=50),
 ):
-    return search(q, mode="keyword", color=color, product_type=product_type, limit=limit)
+    return await search(q, mode="keyword", color=color, product_type=product_type, limit=limit)
 
 
-# ops and health routes
+# ---------------------------------------------------------------------------
+# Operational
+# ---------------------------------------------------------------------------
+
 @router.get("/health")
 async def health():
     from shared.postgres import get_pool
@@ -151,7 +160,7 @@ async def health():
         pg_ok = True
     except Exception:
         pg_ok = False
-    qdrant_ok = check_health()
+    qdrant_ok = await check_health()
     return {"postgres": pg_ok, "qdrant": qdrant_ok}
 
 

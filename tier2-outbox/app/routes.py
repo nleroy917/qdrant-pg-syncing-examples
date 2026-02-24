@@ -121,33 +121,33 @@ async def delete_product_endpoint(article_id: str):
 
 # search endpoints
 @router.get("/search", response_model=list[SearchResult])
-def search_hybrid(
+async def search_hybrid(
     q: str = Query(...),
     color: str | None = Query(None),
     product_type: str | None = Query(None),
     limit: int = Query(10, ge=1, le=50),
 ):
-    return search(q, mode="hybrid", color=color, product_type=product_type, limit=limit)
+    return await search(q, mode="hybrid", color=color, product_type=product_type, limit=limit)
 
 
 @router.get("/search/semantic", response_model=list[SearchResult])
-def search_semantic(
+async def search_semantic(
     q: str = Query(...),
     color: str | None = Query(None),
     product_type: str | None = Query(None),
     limit: int = Query(10, ge=1, le=50),
 ):
-    return search(q, mode="semantic", color=color, product_type=product_type, limit=limit)
+    return await search(q, mode="semantic", color=color, product_type=product_type, limit=limit)
 
 
 @router.get("/search/keyword", response_model=list[SearchResult])
-def search_keyword(
+async def search_keyword(
     q: str = Query(...),
     color: str | None = Query(None),
     product_type: str | None = Query(None),
     limit: int = Query(10, ge=1, le=50),
 ):
-    return search(q, mode="keyword", color=color, product_type=product_type, limit=limit)
+    return await search(q, mode="keyword", color=color, product_type=product_type, limit=limit)
 
 
 # pure ops
@@ -160,7 +160,7 @@ async def health():
         pg_ok = True
     except Exception:
         pg_ok = False
-    qdrant_ok = check_health()
+    qdrant_ok = await check_health()
     return {"postgres": pg_ok, "qdrant": qdrant_ok}
 
 

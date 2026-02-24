@@ -70,7 +70,7 @@ async def lifespan(app: FastAPI):
     await init_schema()
     pool = await get_pool()
     await pool.execute(INIT_OUTBOX_SQL)
-    init_collection()
+    await init_collection()
 
     # start the outbox worker as a background task
     if WORKER_MODE == "listen":

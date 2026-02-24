@@ -25,7 +25,7 @@ from app.routes import router
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await init_schema()
-    init_collection()
+    await init_collection()
     yield
     await close_pool()
 

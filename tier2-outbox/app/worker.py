@@ -74,9 +74,9 @@ async def _process_event(event: dict[str, Any]) -> None:
 
     try:
         if operation == "upsert" and event.get("payload"):
-            upsert_product(event["payload"])
+            await upsert_product(event["payload"])
         elif operation == "delete":
-            qdrant_delete(article_id)
+            await qdrant_delete(article_id)
         else:
             logger.warning("Unknown operation '%s' for event %d", operation, event_id)
 

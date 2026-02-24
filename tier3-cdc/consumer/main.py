@@ -25,7 +25,11 @@ load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"))
 
 from confluent_kafka import Consumer, KafkaError, KafkaException
 
-from shared.qdrant_helpers import delete_product, init_collection, upsert_product
+from shared.qdrant_helpers import (
+    delete_product as _async_delete,
+    init_collection as _async_init_collection,
+    upsert_product as _async_upsert,
+)
 
 logging.basicConfig(
     level=logging.INFO,
@@ -48,16 +52,16 @@ def _handle_event(event: dict) -> None:
 
     if op in ("c", "u"):
         logger.info("Upserting product %s (op=%s)", article_id, op)
-        upsert_product(event)
+        asyncio.run(_async_upsert(event))
     elif op == "d":
         logger.info("Deleting product %s", article_id)
-        delete_product(article_id)
+        asyncio.run(_async_delete(article_id))
     else:
         logger.warning("Unknown op '%s' for article_id %s", op, article_id)
 
 
 def run_consumer() -> None:
-    init_collection()
+    asyncio.run(_async_init_collection())
 
     consumer = Consumer(
         {
@@ -96,7 +100,7 @@ def run_consumer() -> None:
                     article_id = key.get("article_id")
                     if article_id:
                         logger.info("Tombstone delete for %s", article_id)
-                        delete_product(article_id)
+                        asyncio.run(_async_delete(article_id))
                 except Exception as exc:
                     logger.error("Failed to process tombstone: %s", exc)
             else:

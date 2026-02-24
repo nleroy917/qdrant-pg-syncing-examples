@@ -5,7 +5,7 @@ from typing import Literal
 from shared.qdrant_helpers import hybrid_search, keyword_search, semantic_search
 
 
-def search(
+async def search(
     query: str,
     mode: Literal["hybrid", "semantic", "keyword"] = "hybrid",
     color: str | None = None,
@@ -13,8 +13,8 @@ def search(
     limit: int = 10,
 ) -> list[dict]:
     if mode == "semantic":
-        return semantic_search(query, color=color, product_type=product_type, limit=limit)
+        return await semantic_search(query, color=color, product_type=product_type, limit=limit)
     elif mode == "keyword":
-        return keyword_search(query, color=color, product_type=product_type, limit=limit)
+        return await keyword_search(query, color=color, product_type=product_type, limit=limit)
     else:
-        return hybrid_search(query, color=color, product_type=product_type, limit=limit)
+        return await hybrid_search(query, color=color, product_type=product_type, limit=limit)

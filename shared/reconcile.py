@@ -1,3 +1,10 @@
+"""
+Reconciliation: compare Postgres product IDs vs. Qdrant point IDs and report/fix drift.
+
+Usage:
+    python -m shared.reconcile          # report only
+    python -m shared.reconcile --fix    # auto-fix
+"""
 from __future__ import annotations
 
 import asyncio
@@ -17,7 +24,7 @@ async def reconcile(fix: bool = False) -> ReconcileResult:
     pg_ids = set(await get_all_article_ids())
 
     print("Fetching IDs from Qdrant...")
-    qdrant_ids = set(get_all_point_ids())
+    qdrant_ids = set(await get_all_point_ids())
 
     missing_in_qdrant = pg_ids - qdrant_ids
     orphaned_in_qdrant = qdrant_ids - pg_ids
@@ -32,7 +39,7 @@ async def reconcile(fix: bool = False) -> ReconcileResult:
         orphaned_ids=sorted(orphaned_in_qdrant),
     )
 
-    print(f"\n=== Reconciliation Report ===")
+    print("\n=== Reconciliation Report ===")
     print(f"Postgres products : {result.postgres_count}")
     print(f"Qdrant points     : {result.qdrant_count}")
     print(f"Missing in Qdrant : {result.missing_in_qdrant}")
@@ -47,14 +54,14 @@ async def reconcile(fix: bool = False) -> ReconcileResult:
             for article_id in missing_in_qdrant:
                 product = await get_product(article_id)
                 if product:
-                    upsert_product(product)
-            print(f"  Done upserting.")
+                    await upsert_product(product)
+            print("  Done upserting.")
 
         if orphaned_in_qdrant:
             print(f"  Deleting {len(orphaned_in_qdrant)} orphaned points from Qdrant...")
             for article_id in orphaned_in_qdrant:
-                qdrant_delete(article_id)
-            print(f"  Done deleting.")
+                await qdrant_delete(article_id)
+            print("  Done deleting.")
 
         print("\nReconciliation complete.")
 
