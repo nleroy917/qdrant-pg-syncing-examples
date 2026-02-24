@@ -49,6 +49,17 @@ def init_collection() -> None:
                 ),
             },
         )
+    
+    # create payload indices on commonly filtered fields for better performance
+    for field in ["color", "product_type"]:
+        try:
+            client.create_payload_index(
+                collection_name=config.qdrant_collection,
+                field_name=field,
+                field_schema=models.PayloadSchemaType.KEYWORD,
+            )
+        except Exception as exc:
+            print(f"Warning: Failed to create payload index on '{field}': {exc}")
 
 
 def _product_to_point(product: dict) -> PointStruct:
