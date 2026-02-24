@@ -71,7 +71,7 @@ Set `WORKER_MODE` in `.env`:
 
 | Mode | Env value | Behaviour |
 |------|-----------|-----------|
-| Polling (default) | `poll` | Checks outbox every `OUTBOX_POLL_INTERVAL_SECONDS` (default 2s) |
+| Polling (default) | `poll` | Checks outbox every `QDRANT_SYNC_TTL_SECONDS` (default 2s) |
 | LISTEN/NOTIFY | `listen` | Wakes instantly on new events via Postgres `NOTIFY`; falls back to 30s sweep |
 
 ## Outbox Table

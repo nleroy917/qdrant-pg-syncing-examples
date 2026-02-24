@@ -14,13 +14,10 @@ from shared.models import (
     SyncStatus,
 )
 from shared.postgres import (
-    delete_product as pg_delete,
-    get_all_article_ids,
     get_pool,
     get_product,
     list_products,
     patch_product,
-    update_product,
 )
 from shared.qdrant_helpers import check_health
 from shared.reconcile import reconcile

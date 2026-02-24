@@ -10,6 +10,7 @@ Both modes share the same core processing logic and retry semantics.
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import os
 from typing import Any
@@ -21,9 +22,9 @@ from shared.qdrant_helpers import delete_product as qdrant_delete, upsert_produc
 
 logger = logging.getLogger(__name__)
 
-POLL_INTERVAL = float(os.getenv("OUTBOX_POLL_INTERVAL_SECONDS", "2"))
-BATCH_SIZE = int(os.getenv("OUTBOX_BATCH_SIZE", "50"))
-MAX_ATTEMPTS = int(os.getenv("OUTBOX_MAX_ATTEMPTS", "5"))
+POLL_INTERVAL = float(os.getenv("QDRANT_SYNC_TTL_SECONDS", "2"))
+BATCH_SIZE = int(os.getenv("OUTBOX_BATCH_SIZE", "250"))
+MAX_ATTEMPTS = int(os.getenv("OUTBOX_MAX_ATTEMPTS", "10"))
 
 
 # core processing logic (shared by both modes)
@@ -45,7 +46,7 @@ async def process_batch() -> int:
             WHERE id IN (
                 SELECT id FROM sync_outbox
                 WHERE status IN ('pending', 'failed')
-                  AND attempts < max_attempts
+                    AND attempts < max_attempts
                 ORDER BY created_at ASC
                 LIMIT $1
                 FOR UPDATE SKIP LOCKED
@@ -68,13 +69,17 @@ async def process_batch() -> int:
 
 async def _process_event(event: dict[str, Any]) -> None:
     pool = await get_pool()
+
     event_id = event["id"]
     article_id = event["entity_id"]
     operation = event["operation"]
 
     try:
         if operation == "upsert" and event.get("payload"):
-            await upsert_product(event["payload"])
+            payload = event["payload"]
+            if isinstance(payload, str):
+                payload = json.loads(payload)
+            await upsert_product(payload)
         elif operation == "delete":
             await qdrant_delete(article_id)
         else:
@@ -136,7 +141,7 @@ async def run_listen_worker() -> None:
     logger.info("Outbox worker started (LISTEN/NOTIFY mode)")
     pool = await get_pool()
 
-    # Ddedicated connection for LISTEN — cannot be a pool connection
+    # dedicated connection for LISTEN — cannot be a pool connection
     conn: asyncpg.Connection = await asyncpg.connect(pool.get_dsn())
 
     try:
