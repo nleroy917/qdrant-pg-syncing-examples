@@ -8,10 +8,14 @@ if [ -f "$SCRIPT_DIR/../.env" ]; then
   export $(grep -v '^#' "$SCRIPT_DIR/../.env" | xargs)
 fi
 
-echo "Seeding Postgres with 1,000 products from HuggingFace..."
-PYTHONPATH="$ROOT_DIR" python -m shared.seed
+API_URL="${API_URL:-http://localhost:8000}"
+
+echo "Seeding via API at $API_URL ..."
+echo "(Make sure the API is running: PYTHONPATH=../.. uvicorn app.main:app --port 8000)"
+echo ""
+
+PYTHONPATH="$ROOT_DIR" python -m shared.seed --api "$API_URL"
 
 echo ""
-echo "Postgres is seeded."
-echo "The outbox worker will sync products to Qdrant as events are processed."
-echo "To check worker status: curl http://localhost:8000/sync/status"
+echo "Products are in Postgres. The outbox worker will sync them to Qdrant."
+echo "To check worker status: curl $API_URL/sync/status | jq"

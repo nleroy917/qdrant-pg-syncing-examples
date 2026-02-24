@@ -8,12 +8,15 @@ if [ -f "$SCRIPT_DIR/../.env" ]; then
   export $(grep -v '^#' "$SCRIPT_DIR/../.env" | xargs)
 fi
 
-echo "Seeding Postgres with 1,000 products from HuggingFace..."
-PYTHONPATH="$ROOT_DIR" python -m shared.seed
+API_URL="${API_URL:-http://localhost:8000}"
+
+echo "Seeding via API at $API_URL ..."
+echo "(Make sure the API is running: PYTHONPATH=../.. uvicorn app.main:app --port 8000)"
+echo ""
+
+PYTHONPATH="$ROOT_DIR" python -m shared.seed --api "$API_URL"
 
 echo ""
-echo "Postgres is seeded."
-echo "Debezium will capture these initial rows via snapshot mode and publish them to Redpanda."
-echo "The consumer service will sync them to Qdrant."
-echo ""
+echo "Products are in Postgres. Debezium will capture the WAL events and"
+echo "publish them to Redpanda. The consumer will sync them to Qdrant."
 echo "Check consumer logs: docker compose logs -f consumer"

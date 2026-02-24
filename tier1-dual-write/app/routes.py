@@ -39,10 +39,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-# ---------------------------------------------------------------------------
-# CRUD
-# ---------------------------------------------------------------------------
-
+# crud
 @router.post("/products", response_model=ProductResponse, status_code=201)
 async def create_product(product: ProductCreate):
     # 1. Write to Postgres first — it is the source of truth
@@ -113,10 +110,7 @@ async def delete_product_endpoint(article_id: str):
         logger.error("Qdrant delete failed for %s: %s", article_id, exc)
 
 
-# ---------------------------------------------------------------------------
-# Search
-# ---------------------------------------------------------------------------
-
+# search routes
 @router.get("/search", response_model=list[SearchResult])
 async def search_hybrid(
     q: str = Query(..., description="Search query"),
@@ -147,10 +141,7 @@ async def search_keyword(
     return await search(q, mode="keyword", color=color, product_type=product_type, limit=limit)
 
 
-# ---------------------------------------------------------------------------
-# Operational
-# ---------------------------------------------------------------------------
-
+# ops
 @router.get("/health")
 async def health():
     from shared.postgres import get_pool

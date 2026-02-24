@@ -29,7 +29,9 @@ def get_client() -> AsyncQdrantClient:
 
 
 async def init_collection() -> None:
-    """Create the products collection if it doesn't exist."""
+    """
+    Create the products collection if it doesn't exist.
+    """
     client = get_client()
     existing = [c.name for c in (await client.get_collections()).collections]
     if config.qdrant_collection not in existing:
