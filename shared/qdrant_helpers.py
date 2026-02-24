@@ -119,7 +119,9 @@ async def delete_product(article_id: str) -> None:
 
 
 async def get_all_point_ids() -> list[str]:
-    """Scroll through all points and return article_ids from their payloads."""
+    """
+    Scroll through all points and return article_ids from their payloads.
+    """
     client = get_client()
     article_ids = []
     offset = None
@@ -165,7 +167,9 @@ async def hybrid_search(
     product_type: str | None = None,
     limit: int = 10,
 ) -> list[dict[str, Any]]:
-    """Hybrid search combining dense + BM25 with RRF fusion."""
+    """
+    Hybrid search combining dense + BM25 with RRF fusion.
+    """
     client = get_client()
     query_filter = _build_filter(color, product_type)
 
@@ -218,7 +222,9 @@ async def keyword_search(
     product_type: str | None = None,
     limit: int = 10,
 ) -> list[dict[str, Any]]:
-    """BM25-only keyword search."""
+    """
+    BM25-only keyword search.
+    """
     client = get_client()
     results = await client.query_points(
         collection_name=config.qdrant_collection,
@@ -232,7 +238,9 @@ async def keyword_search(
 
 
 async def check_health() -> bool:
-    """Return True if Qdrant is reachable."""
+    """
+    Return True if Qdrant is reachable.
+    """
     try:
         await get_client().get_collections()
         return True

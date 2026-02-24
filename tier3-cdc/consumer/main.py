@@ -12,6 +12,7 @@ Run standalone:
 """
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import os
@@ -42,7 +43,13 @@ TOPIC = os.getenv("KAFKA_TOPIC", "pgserver.public.products")
 GROUP_ID = os.getenv("KAFKA_GROUP_ID", "qdrant-sync")
 
 
-def _handle_event(event: dict) -> None:
+# Debezium metadata fields injected by ExtractNewRecordState — strip before upsert
+_DEBEZIUM_META = frozenset(
+    ["__op", "__deleted", "__source_ts_ms", "__ts_ms", "__table", "__lsn"]
+)
+
+
+async def _handle_event(event: dict) -> None:
     op = event.get("__op")
     article_id = event.get("article_id")
 
@@ -52,16 +59,17 @@ def _handle_event(event: dict) -> None:
 
     if op in ("c", "u"):
         logger.info("Upserting product %s (op=%s)", article_id, op)
-        asyncio.run(_async_upsert(event))
+        product = {k: v for k, v in event.items() if k not in _DEBEZIUM_META}
+        await _async_upsert(product)
     elif op == "d":
         logger.info("Deleting product %s", article_id)
-        asyncio.run(_async_delete(article_id))
+        await _async_delete(article_id)
     else:
         logger.warning("Unknown op '%s' for article_id %s", op, article_id)
 
 
-def run_consumer() -> None:
-    asyncio.run(_async_init_collection())
+async def _run_consumer_async() -> None:
+    await _async_init_collection()
 
     consumer = Consumer(
         {
@@ -74,9 +82,11 @@ def run_consumer() -> None:
     consumer.subscribe([TOPIC])
     logger.info("Subscribed to topic: %s (group: %s)", TOPIC, GROUP_ID)
 
+    loop = asyncio.get_running_loop()
+
     try:
         while True:
-            msg = consumer.poll(timeout=1.0)
+            msg = await loop.run_in_executor(None, lambda: consumer.poll(1.0))
 
             if msg is None:
                 continue
@@ -93,6 +103,7 @@ def run_consumer() -> None:
                     raise KafkaException(msg.error())
                 continue
 
+            ok = True
             if msg.value() is None:
                 # tombstone message (delete) — key carries the article_id
                 try:
@@ -100,27 +111,36 @@ def run_consumer() -> None:
                     article_id = key.get("article_id")
                     if article_id:
                         logger.info("Tombstone delete for %s", article_id)
-                        asyncio.run(_async_delete(article_id))
+                        await _async_delete(article_id)
                 except Exception as exc:
                     logger.error("Failed to process tombstone: %s", exc)
+                    ok = False
             else:
                 try:
                     event = json.loads(msg.value())
-                    _handle_event(event)
+                    await _handle_event(event)
                 except Exception as exc:
                     logger.error(
                         "Failed to process message at offset %d: %s",
                         msg.offset(),
                         exc,
                     )
+                    ok = False
 
-            # commit after successful processing (at-least-once delivery)
-            consumer.commit(asynchronous=False)
+            # only commit on success (at-least-once delivery)
+            if ok:
+                await loop.run_in_executor(
+                    None, lambda: consumer.commit(asynchronous=False)
+                )
 
     except KeyboardInterrupt:
         logger.info("Consumer interrupted, shutting down...")
     finally:
         consumer.close()
+
+
+def run_consumer() -> None:
+    asyncio.run(_run_consumer_async())
 
 
 if __name__ == "__main__":

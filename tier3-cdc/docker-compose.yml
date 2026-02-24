@@ -48,7 +48,7 @@ services:
       retries: 5
 
   debezium:
-    image: debezium/connect:2.7
+    image: debezium/connect:2.7.3.Final
     depends_on:
       postgres:
         condition: service_healthy
@@ -79,7 +79,8 @@ services:
 
   consumer:
     build:
-      context: ./consumer
+      context: ../
+      dockerfile: tier3-cdc/consumer/Dockerfile
     depends_on:
       debezium:
         condition: service_healthy
