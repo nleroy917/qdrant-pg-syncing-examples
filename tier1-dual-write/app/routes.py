@@ -6,6 +6,7 @@ within the same request handler. Simple, zero extra infra.
 """
 from __future__ import annotations
 
+import asyncio
 import logging
 
 from fastapi import APIRouter, HTTPException, Query
@@ -145,13 +146,16 @@ async def search_keyword(
 @router.get("/health")
 async def health():
     from shared.postgres import get_pool
-    try:
-        pool = await get_pool()
-        await pool.fetchval("SELECT 1")
-        pg_ok = True
-    except Exception:
-        pg_ok = False
-    qdrant_ok = await check_health()
+
+    async def pg_health() -> bool:
+        try:
+            pool = await get_pool()
+            await pool.fetchval("SELECT 1")
+            return True
+        except Exception:
+            return False
+
+    pg_ok, qdrant_ok = await asyncio.gather(pg_health(), check_health())
     return {"postgres": pg_ok, "qdrant": qdrant_ok}
 
 
